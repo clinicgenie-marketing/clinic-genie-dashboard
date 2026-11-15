@@ -1,0 +1,14 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {workingMinutes,classify,transition,esc}=require('./core.js');
+const rules={ack:4,progress:2,follow:3,holidays:[]};
+test('Friday evening pauses until Monday',()=>assert.equal(workingMinutes('2026-11-13T18:00:00+08:00','2026-11-16T10:00:00+08:00'),60));
+test('weekend accrues zero',()=>assert.equal(workingMinutes('2026-11-14T10:00:00+08:00','2026-11-15T15:00:00+08:00'),0));
+test('holiday exclusion',()=>assert.equal(workingMinutes('2026-11-13T09:30:00+08:00','2026-11-13T18:30:00+08:00',['2026-11-13']),0));
+test('full working day is nine hours',()=>assert.equal(workingMinutes('2026-11-13T00:00:00+08:00','2026-11-14T00:00:00+08:00'),540));
+test('negative interval is zero',()=>assert.equal(workingMinutes('2026-11-14','2026-11-13'),0));
+test('acknowledgement alert at four hours',()=>assert.equal(classify({status:'New',created:'2026-11-13T09:30:00+08:00',updated:'2026-11-13T09:30:00+08:00'},'2026-11-13T13:30:00+08:00',rules).label,'Reply needed'));
+test('resolution requires evidence',()=>assert.throws(()=>transition({history:[]},'Resolved',' ','2026-11-13'),/evidence/));
+test('resolved item does not show missed deadline',()=>assert.equal(classify({status:'Resolved',due:'2026-11-01'},'2026-11-13',rules).label,'Resolved'));
+test('completion claim still needs verification',()=>assert.equal(classify({status:'Completion claimed',updated:'2026-11-13'},'2026-11-13',rules).label,'Verify completion'));
+test('transition is immutable and auditable',()=>{let t={status:'New',history:[]};let next=transition(t,'Resolved','Verified published page','2026-11-13');assert.equal(t.status,'New');assert.equal(next.history.length,1)});
+test('invalid status rejected',()=>assert.throws(()=>transition({history:[]},'Done','','2026-11-13')));
+test('HTML input escaped',()=>assert.equal(esc('<script>"&'), '&lt;script&gt;&quot;&amp;'));
